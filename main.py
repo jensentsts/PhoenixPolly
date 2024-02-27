@@ -6,36 +6,38 @@
 # ** 使用tesseract **
 import time
 
+import numpy as np
 import torch
-
-print(torch.cuda.device_count())
-print(torch.cuda.is_available())
-
 from PIL.Image import Image
 
 import get_phoenix_wright
-import polly
+from polly import Polly
+
+print('Cuda是否可用:', torch.cuda.is_available())
+print('Cuda支持的设备数量:', torch.cuda.device_count())
+
+little_polly = Polly()
 
 
-def decode_dialog_tuple(dialogs: tuple[Image, Image]) -> str:
-    return polly.read(dialogs[0]) + polly.read(dialogs[1])
+def decode_dialog_tuple(dialogs: tuple[np.ndarray, np.ndarray]) -> str:
+    return little_polly.read(dialogs[0]) + little_polly.read(dialogs[1])
 
 
 if __name__ == '__main__':
     spoken_text = ''
     spoken_name = ''
-    polly.say_hello()
+    little_polly.say_hello()
     while True:
-        time.sleep(0.02)
-        name = polly.read(get_phoenix_wright.get_speaker_name())
+        time.sleep(0.05)
+        name = little_polly.read(get_phoenix_wright.get_speaker_name())
         if spoken_name != name and len(name) != 0:
-            polly.learn(name + '说')
+            little_polly.learn(name + '说')
         spoken_name = name
 
         text = decode_dialog_tuple(get_phoenix_wright.get_dialog_tuple())
         if spoken_text in text:
-            polly.learn(text[len(spoken_text):])
+            little_polly.learn(text[len(spoken_text):])
         elif len(text) > 0:
-            polly.learn(text)
+            little_polly.learn(text)
         spoken_text = text
-        polly.say()
+        little_polly.say()
