@@ -2,7 +2,7 @@
 # @Time    : 2024/2/26 21:05
 # @Author  : jensentsts
 # @File    : get_phoenix_wright.py
-# @Description :
+# @Description : 基于win32与逆转裁判做交互。
 import cv2
 import numpy as np
 import pygetwindow
@@ -12,7 +12,7 @@ from PIL import Image
 PHOENIX_TITLE = 'Phoenix Wright'
 
 DIALOG_TOP = 684
-DIALOG_LEFT = 270
+DIALOG_LEFT = 284
 DIALOG_WIDTH = 920
 DIALOG_HEIGHT = 188
 
@@ -43,6 +43,18 @@ def get_region_shot(rela_left: int, rela_top: int, rela_width: int, rela_height:
     return pyautogui.screenshot(region=(left + rela_left, top + rela_top, rela_width, rela_height))
 
 
+def convolve_filter(img: np.ndarray, size: int, threshold: int):
+    # 卷积滤波
+    from scipy.signal import convolve2d
+    kernel = np.ones([size, size])
+    kernel[int(size / 2), int(size / 2)] = 0
+    counter = np.where(img >= 160, 1, 0)
+    convolved = convolve2d(counter, kernel)
+    convolved = np.where(convolved >= threshold, 1, 0)
+    counter = convolve2d(counter, -kernel + 1)
+    return np.where(counter * convolved == 1, 255, 0)
+
+
 def get_dialog_tuple(as_Image: bool = False) -> tuple[Image.Image, Image.Image] | tuple[np.ndarray, np.ndarray]:
     """
     获取对话框中包含文字部分的截图
@@ -51,24 +63,17 @@ def get_dialog_tuple(as_Image: bool = False) -> tuple[Image.Image, Image.Image] 
 
     def proces(img: Image.Image) -> Image.Image | np.ndarray:
         img = np.array(img)
-        img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        img_hsv = cv2.GaussianBlur(img_hsv, (3, 3), 0)
-        img_can_medium = cv2.Canny(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), 140, 240)
-        res = cv2.inRange(img_hsv, np.array([0, 0, 200]), np.array([255, 255, 255]))
+        img_can_medium = cv2.Canny(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), 120, 200)
+        res = cv2.inRange(cv2.cvtColor(img, cv2.COLOR_BGR2HSV), np.array([0, 0, 200]), np.array([255, 255, 255]))
         res = cv2.addWeighted(res, 0.7, img_can_medium, 1, 0)
 
         # 消除左上角的边框区域（预留区域减少缩放操作和提高识别成功率）
         res[0:20, 0:160] = 0
-        # 卷积滤波
-        kernel = np.array([[1, 1, 1], [1, 0, 1], [1, 1, 1]])
-        counter = np.where(res > 160, 1, 0)
-        from scipy import signal
-        counter = signal.convolve2d(counter, kernel)
 
+        res = convolve_filter(res, 3, 3)
         if as_Image:
-            return Image.fromarray(np.where(counter >= 5, 255, 0)).convert('RGB')
-        # return cv2.cvtColor(np.where(counter >= 5, 255, 0), cv2.COLOR_GRAY2RGB)
-        return np.array(Image.fromarray(np.where(counter >= 5, 255, 0)).convert('RGB'))
+            return Image.fromarray(res).convert('RGB')
+        return np.array(Image.fromarray(res).convert('RGB'))
 
     return (proces(get_region_shot(DIALOG_LEFT, DIALOG_TOP, DIALOG_WIDTH, int(DIALOG_HEIGHT / 2) + 8)),
             proces(get_region_shot(DIALOG_LEFT, DIALOG_TOP + int(DIALOG_HEIGHT / 2) - 12, DIALOG_WIDTH, int(DIALOG_HEIGHT / 2))))

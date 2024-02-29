@@ -6,7 +6,6 @@
 # 真宵：是不是忘记了什么事？
 # 小百合：别忘了DL-6号事件！
 
-
 import easyocr
 import win32com.client
 import numpy as np
@@ -21,7 +20,7 @@ class Polly:
     tongue = win32com.client.Dispatch('SAPI.SpVoice')  # 相当于 speaker
     tongue.Rate = RATE
     tongue_buffer: str = ''
-    reader = easyocr.Reader(['ch_sim', 'en'], gpu=True, download_enabled=True)
+    reader = easyocr.Reader(['ch_sim', 'en'], gpu=False, download_enabled=True)
 
     def say_hello(self):
         self.tongue.Speak('小百合说：不可以忘记DL6号事件！')
